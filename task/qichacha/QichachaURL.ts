@@ -1,0 +1,1 @@
+export const QICHACHA = 'https://www.qichacha.com';
