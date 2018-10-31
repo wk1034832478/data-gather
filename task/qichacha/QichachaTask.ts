@@ -13,6 +13,12 @@ import { reportInfo } from './reptile/ReportInfo';
 import { lawsuit } from './reptile/Lawsuit';
 import { businessStatus } from './reptile/BusinessStatus';
 import { basicInfo } from './reptile/BasicInfo';
+import { Company } from './entity/Company';
+import { mysqlStorage } from './persist/MysqlStorage';
+import { ShareHolder } from './entity/ShareHolder';
+import { Invoice } from './entity/Invoice';
+import { ChangeRecord } from './entity/ChangeRecord';
+import { parser } from '../qichacha/parser/Parser';
 /**
  * 企查查任务
  */
@@ -38,7 +44,7 @@ export class QichachaTask extends Task {
     async start() {
         Logger.log(this, `启动任务`);
         for (let i = 0; i < this.companyNames.length; i++) {
-            if ( this.signal === this.SIGNAL_END ) {
+            if (this.signal === this.SIGNAL_END) {
                 Logger.log(this, '搜索任务终止！');
                 break;
             }
@@ -108,47 +114,14 @@ export class QichachaTask extends Task {
     }
 
     async parseInfo(page: Page) {
-        Logger.log(this, `开始解析页面`);
-        const info = await page.evaluate(() => {
-            // 获取股东信息
-            const socks = [];
-            const sockTrs = $('#Sockinfo .ntable.ntable-odd tr');
-            if (sockTrs.length > 0) { // 存在股东信息
-                const headers = sockTrs[0].querySelectorAll('th');
-                for (let i = 1; i < sockTrs.length; i++) {
-                    const tr = sockTrs[i];
-                    const tds = tr.querySelectorAll('td');
-                    let 序号, 股东, 持股比例, 认缴出资额, 认缴出资日期;
-                    for (let j = 0; j < tds.length; j++) {
-                        const td = tds[j];
-                        if (headers[j].innerHTML.indexOf('序号') !== -1) { 序号 = td.innerHTML; }
-                        if (headers[j].innerHTML.indexOf('股东') !== -1) { 股东 = td.innerHTML; }
-                        if (headers[j].innerHTML.indexOf('持股比例') !== -1) { 持股比例 = td.innerHTML; }
-                        if (headers[j].innerHTML.indexOf('认缴出资额') !== -1) { 认缴出资额 = td.innerHTML; }
-                        if (headers[j].innerHTML.indexOf('认缴出资日期') !== -1) { 认缴出资日期 = td.innerHTML; }
-                    }
-                    socks.push({ 序号: 序号, 股东: 股东, 持股比例: 持股比例, 认缴出资额: 认缴出资额, 认缴出资日期: 认缴出资日期 });
-                }
-            }
-            let 投资总数 = $('#touzilist .tcaption .tbadge').text();
-            // 获取 发票信息
-            const 发票 = {
-                '名称':$( `#fapiao-title .m-t-md.TaxView p:contains('名称')` ).find('span').text(),
-                '税号':$( `#fapiao-title .m-t-md.TaxView p:contains('税号')` ).find('span').text(),
-                '地址':$( `#fapiao-title .m-t-md.TaxView p:contains('地址')` ).find('span').text(),
-                '电话':$( `#fapiao-title .m-t-md.TaxView p:contains('电话')` ).find('span').text(),
-                '开户银行':$( `#fapiao-title .m-t-md.TaxView p:contains('开户银行')` ).find('span').text(),
-                '银行账户':$( `#fapiao-title .m-t-md.TaxView p:contains('银行账户')` ).find('span').text(),
-            };
+        let info: Company = await page.evaluate(() => {
             const map = {
                 '公司名': $('#company-top h1').text(),
                 '曾用名': $($('.nstatus.text-warning.tooltip-br').attr('data-original-title')).text(),
-                '公司简介': $('#Comintroduce').text(),
                 '电话': $('.cdes:contains("电话")+span.cvlu').text(),
-                '官网': $('.cdes:contains("官网")+span.cvlu>a').text(),
-                '邮箱': $('.cdes:contains("邮箱")+span.cvlu>a').text(),
-                '地址': $('.cdes:contains("地址")+span.cvlu>a').text(),
-                '简介': $('.cdes:contains("简介")+span.cvlu').text(),
+                '官网': $('.cdes:contains("官网")+span.cvlu').text(),
+                '邮箱': $('.cdes:contains("邮箱")+span.cvlu').text(),
+                '地址': $('.cdes:contains("地址")+span.cvlu').text(),
                 '在业状态': $('.nstatus.text-success-lt.m-l-xs').text(),
                 'ceo': $('.seo.font-20').text(),
                 '注册资本': $('#Cominfo .ntable .tb:contains("注册资本")+td').text(),
@@ -170,188 +143,218 @@ export class QichachaTask extends Task {
                 '营业期限': $('#Cominfo .ntable .tb:contains("营业期限")+td').text(),
                 '企业地址': $('#Cominfo .ntable .tb:contains("企业地址")+td').text(),
                 '经营范围': $('#Cominfo .ntable .tb:contains("经营范围")+td').text(),
-                '股东': socks,
-                '投资总数': 投资总数,
-                '发票': 发票
+                '投资总数': $('#touzilist .tcaption .tbadge').text(),
             };
             return map;
         });
-        Logger.log( this, '开始调用企查查子组件爬取信息');
-        await this.getBasicInfo( page );
-        await this.getBusinessRisk( page );
-        await this.getBusinessStatus( page );
-        await this.getKnowledgeAsset( page );
-        await this.getLawsuit( page );
-        await this.getReportInfo( page );
+        try {
+            let company: Company = await mysqlStorage.storeCompany(info);
+            info = company;
+            Logger.log(this, `公司信息存储成功-${company.公司名}`);
+        } catch (e) {
+            Logger.log(this, `公司信息存储失败-${e}`);
+            return;
+        }
+        Logger.log(this, '开始调用企查查子组件爬取信息');
+        await this.getBasicInfo(page, info);
+        await this.getBusinessRisk(page, info);
+        await this.getBusinessStatus(page, info);
+        await this.getKnowledgeAsset(page, info);
+        await this.getLawsuit(page, info);
+        await this.getReportInfo(page, info);
+        Logger.log(this, '信息获取完成！准备装入数据库');
     }
-
-    async getBasicInfo( page: Page ) {
+    async getBasicInfo(page: Page, comapny: Company) {
         Logger.log(this, `开始获取企业基本信息`);
         try {
-            await basicInfo.getChange( page );
-        } catch ( e ) {
-            Logger.log( this, `变更记录信息获取失败或信息不存在！`);
+            const shareholders: ShareHolder[] = await basicInfo.getShareHolder(page);
+            for (let i = 0; i < shareholders.length; i++) {
+                const shareholder = shareholders[i];
+                shareholder.company_id = comapny.id;
+                mysqlStorage.storeShareHolder(shareholder);
+            }
+        } catch (e) {
+            Logger.log(this, `股东信息获取失败或信息不存在！`);
         }
         try {
-            await basicInfo.getMainMember( page );
-        } catch ( e ) {
-            Logger.log( this, `主要成员信息获取失败或信息不存在！`);
+            const invoice: Invoice = await basicInfo.getTax(page);
+            invoice.company_id = comapny.id;
+            mysqlStorage.storeObject(invoice, 'invoice', { '税号': invoice.税号 });
+        } catch (e) {
+            Logger.log(this, `发票信息获取失败或信息不存在！`);
         }
         try {
-            await basicInfo.getSubcom( page );
-        } catch ( e ) {
-            Logger.log( this, `分支机构信息获取失败或信息不存在！`);
+            const changeRecord: string[] = await basicInfo.getChange(page);
+            const changeRecords: ChangeRecord[] = parser.parseStringArray(changeRecord);
+            Logger.log(this, `测试：${changeRecords[0].变更前}`);
+            for( let i = 0; i < changeRecords.length; i++) {
+                changeRecords[i].company_id = comapny.id;
+                mysqlStorage.storeObjectOrReturn( changeRecords[i], 'change_record', { 
+                'company_id': changeRecords[i].company_id, '变更项目': changeRecords[i].变更项目,'变更前': changeRecords[i].变更前,'变更后': changeRecords[i].变更后 } );
+            }
+        } catch (e) {
+            Logger.log(this, `变更记录信息获取失败或信息不存在！${e}`);
         }
         try {
-            await basicInfo.getTouZiInfo( page );
-        } catch ( e ) {
-            Logger.log( this, `投资信息获取失败或信息不存在！`);
+            await basicInfo.getMainMember(page);
+        } catch (e) {
+            Logger.log(this, `主要成员信息获取失败或信息不存在！`);
+        }
+        try {
+            await basicInfo.getSubcom(page);
+        } catch (e) {
+            Logger.log(this, `分支机构信息获取失败或信息不存在！`);
+        }
+        try {
+            await basicInfo.getTouZiInfo(page);
+        } catch (e) {
+            Logger.log(this, `投资信息获取失败或信息不存在！`);
         }
     }
 
-    async getBusinessRisk( page: Page ) {
+    async getBusinessRisk(page: Page, comapny: Company) {
         Logger.log(this, `开始获取商业风险信息`);
         try {
-            await businessRisks.getPenaltylist( page );
-        } catch ( e ) {
-            Logger.log( this, `股权出质信息获取失败或信息不存在！`);
+            await businessRisks.getPenaltylist(page);
+        } catch (e) {
+            Logger.log(this, `股权出质信息获取失败或信息不存在！`);
         }
         try {
-            await businessRisks.getPledgeList( page );
-        } catch ( e ) {
-            Logger.log( this, `工商行政处罚信息获取失败或信息不存在！`);
+            await businessRisks.getPledgeList(page);
+        } catch (e) {
+            Logger.log(this, `工商行政处罚信息获取失败或信息不存在！`);
         }
         try {
-            await businessRisks.getXinYongZhongGuoPledgeList( page );
-        } catch ( e ) {
-            Logger.log( this, `信用中国处罚信息获取失败或信息不存在！`);
-        }
-    }
-
-    async getBusinessStatus( page: Page ) {
-        try {
-            await businessStatus.getCaiWuZongLan( page  );
-        } catch ( e ) {
-            Logger.log( this, `财务总览信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getJinChuKouXinYong( page  );
-        } catch ( e ) {
-            Logger.log( this, `进出口信用信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getLandpublist( page  );
-        } catch ( e ) {
-            Logger.log( this, `地块信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getLandpurchaselist( page  );
-        } catch ( e ) {
-            Logger.log( this, `购地信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getProductList( page  );
-        } catch ( e ) {
-            Logger.log( this, `产品列表信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getRongZiXinXi( page  );
-        } catch ( e ) {
-            Logger.log( this, `融资信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getSpotCheckList( page  );
-        } catch ( e ) {
-            Logger.log( this, `抽查检查信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getSuiWuXinYong( page  );
-        } catch ( e ) {
-            Logger.log( this, `税务信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getTelecomlist( page  );
-        } catch ( e ) {
-            Logger.log( this, `电信信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getWeChatPublic( page  );
-        } catch ( e ) {
-            Logger.log( this, `微信公众号信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getXingZhengXuKeOfGongShang( page  );
-        } catch ( e ) {
-            Logger.log( this, `工商局行政许可信息获取失败或信息不存在！`);
-        }
-        try {
-            await businessStatus.getXingZhengXuKeOfXinYongZhongGuo( page  );
-        } catch ( e ) {
-            Logger.log( this, `信用中国行政许可信息获取失败或信息不存在！`);
+            await businessRisks.getXinYongZhongGuoPledgeList(page);
+        } catch (e) {
+            Logger.log(this, `信用中国处罚信息获取失败或信息不存在！`);
         }
     }
 
-    async getKnowledgeAsset( page: Page ) {
+    async getBusinessStatus(page: Page, comapny: Company) {
         try {
-            await knowledgeAssets.getRjzzqlist( page );
-        } catch ( e ) {
-            Logger.log( this, `软件著作权信息获取失败或信息不存在！`);
+            await businessStatus.getCaiWuZongLan(page);
+        } catch (e) {
+            Logger.log(this, `财务总览信息获取失败或信息不存在！`);
         }
         try {
-            await knowledgeAssets.getShangBiao( page );
-        } catch ( e ) {
-            Logger.log( this, `商标信息获取失败或信息不存在！`);
+            await businessStatus.getJinChuKouXinYong(page);
+        } catch (e) {
+            Logger.log(this, `进出口信用信息获取失败或信息不存在！`);
         }
         try {
-            await knowledgeAssets.getWebsiteList( page );
-        } catch ( e ) {
-            Logger.log( this, `网站信息获取失败或信息不存在！`);
+            await businessStatus.getLandpublist(page);
+        } catch (e) {
+            Logger.log(this, `地块信息获取失败或信息不存在！`);
         }
         try {
-            await knowledgeAssets.getZhengshuList( page );
-        } catch ( e ) {
-            Logger.log( this, `证书信息获取失败或信息不存在！`);
+            await businessStatus.getLandpurchaselist(page);
+        } catch (e) {
+            Logger.log(this, `购地信息获取失败或信息不存在！`);
         }
         try {
-            await knowledgeAssets.getZhuanli( page );
-        } catch ( e ) {
-            Logger.log( this, `专利信息获取失败或信息不存在！`);
+            await businessStatus.getProductList(page);
+        } catch (e) {
+            Logger.log(this, `产品列表信息获取失败或信息不存在！`);
         }
         try {
-            await knowledgeAssets.getZZQList( page );
-        } catch ( e ) {
-            Logger.log( this, `作品著作权信息获取失败或信息不存在！`);
+            await businessStatus.getRongZiXinXi(page);
+        } catch (e) {
+            Logger.log(this, `融资信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getSpotCheckList(page);
+        } catch (e) {
+            Logger.log(this, `抽查检查信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getSuiWuXinYong(page);
+        } catch (e) {
+            Logger.log(this, `税务信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getTelecomlist(page);
+        } catch (e) {
+            Logger.log(this, `电信信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getWeChatPublic(page);
+        } catch (e) {
+            Logger.log(this, `微信公众号信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getXingZhengXuKeOfGongShang(page);
+        } catch (e) {
+            Logger.log(this, `工商局行政许可信息获取失败或信息不存在！`);
+        }
+        try {
+            await businessStatus.getXingZhengXuKeOfXinYongZhongGuo(page);
+        } catch (e) {
+            Logger.log(this, `信用中国行政许可信息获取失败或信息不存在！`);
         }
     }
 
-    async getLawsuit( page: Page ) {
+    async getKnowledgeAsset(page: Page, comapny: Company) {
         try {
-            await lawsuit.getFaYuanGongGao( page );
-        } catch ( e ) {
-            Logger.log( this, `法院公告信息获取失败或信息不存在！`);
+            await knowledgeAssets.getRjzzqlist(page);
+        } catch (e) {
+            Logger.log(this, `软件著作权信息获取失败或信息不存在！`);
         }
         try {
-            await lawsuit.getLawsuit( page );
-        } catch ( e ) {
-            Logger.log( this, `被执行人信息获取失败或信息不存在！`);
+            await knowledgeAssets.getShangBiao(page);
+        } catch (e) {
+            Logger.log(this, `商标信息获取失败或信息不存在！`);
         }
         try {
-            await lawsuit.getNoticelist( page );
-        } catch ( e ) {
-            Logger.log( this, `开庭公告信息获取失败或信息不存在！`);
+            await knowledgeAssets.getWebsiteList(page);
+        } catch (e) {
+            Logger.log(this, `网站信息获取失败或信息不存在！`);
         }
         try {
-            await lawsuit.getWenshuList( page );
-        } catch ( e ) {
-            Logger.log( this, `裁判文书信息获取失败或信息不存在！`);
-        }   
+            await knowledgeAssets.getZhengshuList(page);
+        } catch (e) {
+            Logger.log(this, `证书信息获取失败或信息不存在！`);
+        }
+        try {
+            await knowledgeAssets.getZhuanli(page);
+        } catch (e) {
+            Logger.log(this, `专利信息获取失败或信息不存在！`);
+        }
+        try {
+            await knowledgeAssets.getZZQList(page);
+        } catch (e) {
+            Logger.log(this, `作品著作权信息获取失败或信息不存在！`);
+        }
     }
 
-    async getReportInfo( page: Page ) {
+    async getLawsuit(page: Page, comapny: Company) {
         try {
-            const report = await reportInfo.getInfo( page );
-        } catch ( e ) {
-            Logger.log( this, `企业年报信息获取失败或信息不存在！`);
+            await lawsuit.getFaYuanGongGao(page);
+        } catch (e) {
+            Logger.log(this, `法院公告信息获取失败或信息不存在！`);
+        }
+        try {
+            await lawsuit.getLawsuit(page);
+        } catch (e) {
+            Logger.log(this, `被执行人信息获取失败或信息不存在！`);
+        }
+        try {
+            await lawsuit.getNoticelist(page);
+        } catch (e) {
+            Logger.log(this, `开庭公告信息获取失败或信息不存在！`);
+        }
+        try {
+            await lawsuit.getWenshuList(page);
+        } catch (e) {
+            Logger.log(this, `裁判文书信息获取失败或信息不存在！`);
+        }
+    }
+
+    async getReportInfo(page: Page, comapny: Company) {
+        try {
+            const report = await reportInfo.getInfo(page);
+        } catch (e) {
+            Logger.log(this, `企业年报信息获取失败或信息不存在！`);
         }
     }
 }

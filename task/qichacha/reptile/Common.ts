@@ -2,7 +2,7 @@
 import { Page } from 'puppeteer';
 import Logger from '../../../lib/logger/Logger';
 import Sleep from '../../../lib/sleep/sleep';
-import { COLUMN_DEMILITER, ROW_DEMILITER } from '../../../lib/str/Delimiter';
+import { COLUMN_DEMILITER,EQUAL_DEMILITER } from '../../../lib/str/Delimiter';
 export class Common {
     title = '企查查公共组件';
     /**
@@ -101,7 +101,7 @@ export class Common {
     }
     // 获取模态框里面的数据，当不提供字段列表时
     async getDataFromModal(page: Page, columnsSelector: string) {
-        const obj: string[] = await page.evaluate((columnsSelector) => {
+        const obj: string[] = await page.evaluate((columnsSelector,EQUAL_DEMILITER) => {
             let obj = [];
             const tds2 = $(columnsSelector);
             for (let i = 0; i < tds2.length; i++) {
@@ -110,14 +110,14 @@ export class Common {
                 let nextTd = $(td).next();
                 let img = nextTd.find('img');
                 if (img && img.length > 0) { // 存在img
-                    obj.push( td.innerText + '=' +img.attr('src'));
+                    obj.push( td.innerText + EQUAL_DEMILITER +img.attr('src'));
                     continue;
                 }
-                obj.push(td.innerText + '=' + nextTd.text());
+                obj.push(td.innerText + EQUAL_DEMILITER + nextTd.text());
                 continue;
             }
             return obj;
-        }, columnsSelector);
+        }, columnsSelector,EQUAL_DEMILITER);
 
         const obj2 = new Map<any, any>();
         for (let i = 0; i < obj.length; i++) {
@@ -129,7 +129,7 @@ export class Common {
     }
     // 获取模态框里面的数据，当提供字段列表时
     async getDataFromModalByColumns(page: Page, columns: string[], columnsSelector: string) {
-        const obj = await page.evaluate((columns, columnsSelector) => {
+        const obj = await page.evaluate((columns, columnsSelector,EQUAL_DEMILITER) => {
             let obj = [];
             const tds2 = $(columnsSelector);
             for (let i = 0; i < tds2.length; i++) {
@@ -143,19 +143,14 @@ export class Common {
                             obj.push(img.attr('src'));
                             break;
                         }
-                        obj.push(nextTd.text());
+                        obj.push( $(td).text() + EQUAL_DEMILITER + nextTd.text());
                         break;
                     }
                 }
             }
             return obj;
-        }, columns, columnsSelector);
-        const obj2 = new Map<any, any>();
-        for (let i = 0; i < obj.length; i++) {
-            Logger.log(this, `${columns[i]}: ${obj[i]}`);
-            obj2.set(columns[i], obj[i]);
-        }
-        return obj2;
+        }, columns, columnsSelector, EQUAL_DEMILITER);
+       return obj;
     }
     // 获取无头信息的企业基本信息
     async getTableNoHeaderInfo(title: string, page: Page, startupSelector: string, listSelector: string, columns: string[], columnSelectors: string): Promise<string> {
@@ -168,24 +163,24 @@ export class Common {
         await run.click();
         await page.waitForSelector(listSelector,  { timeout: 5000} ); // 行政许可列表
         while (true) {
-            obj += await page.evaluate((columns: string[], columnSelectors: string, COLUMN_DEMILITER: string) => {
+            obj += await page.evaluate((columns: string[], columnSelectors: string, COLUMN_DEMILITER: string,EQUAL_DEMILITER: string) => {
                 const tds = $(columnSelectors);
                 let obj = '';
                 for (let i = 0; i < tds.length; i++) {
                     const td = tds[i];
                     if ( !columns || columns.length === 0) {
-                        obj += td.innerText + '=' + $(td).next().text() + COLUMN_DEMILITER;
+                        obj += td.innerText + EQUAL_DEMILITER + $(td).next().text() + COLUMN_DEMILITER;
                     } else {
                         for (let j = 0; j < columns.length; j++) {
                             if (td.innerText.indexOf(columns[j]) !== -1) {
-                                obj += columns[j] + '=' + $(td).next().text() + COLUMN_DEMILITER;
+                                obj += columns[j] + EQUAL_DEMILITER + $(td).next().text() + COLUMN_DEMILITER;
                                 break;
                             }
                         }
                     }
                 }
                 return obj;
-            }, columns, columnSelectors, COLUMN_DEMILITER);
+            }, columns, columnSelectors, COLUMN_DEMILITER,EQUAL_DEMILITER);
             if (!(await common.nextList(page, listSelector))) {
                 break;
             }
@@ -207,7 +202,7 @@ export class Common {
         await page.waitForSelector(listSelector,  { timeout: 5000} );
         let list: any[] = [];
         while (true) {
-            const list2 = await page.evaluate((listSelector, columns, COLUMN_DEMILITER, ROW_DEMILITER) => {
+            const list2 = await page.evaluate((listSelector, columns, COLUMN_DEMILITER,EQUAL_DEMILITER) => {
                 let list = [];
                 const trs = $(listSelector);
                 const headers = trs[0].querySelectorAll('th'); // 表格的头信息
@@ -221,21 +216,20 @@ export class Common {
                                 // 获取其中的图片，并且必须是最后一张，防止网站隐藏
                                 let imgs = $( tds[j] ).find( 'img' );
                                 if ( imgs && imgs.length > 0) {
-                                    obj += columns[k] + '=' + imgs.get( imgs.length - 1 ).getAttribute( 'src')  + COLUMN_DEMILITER;
+                                    obj += columns[k] + EQUAL_DEMILITER + imgs.get( imgs.length - 1 ).getAttribute( 'src')  + COLUMN_DEMILITER;
                                     break;
                                 }
-                                obj += columns[k] + '=' + tds[j].innerText + COLUMN_DEMILITER;
+                                obj += columns[k] + EQUAL_DEMILITER + tds[j].innerText + COLUMN_DEMILITER;
                                 break;
                             }
                         }
                     }
-                    obj += ROW_DEMILITER;
                     list.push(obj);
                 }
                 return list;
-            }, listSelector, columns, COLUMN_DEMILITER, ROW_DEMILITER);
+            }, listSelector, columns, COLUMN_DEMILITER,EQUAL_DEMILITER);
             Logger.log(this, `本地获取:${list}`);
-            list = [...list, list2];
+            list = [...list, ...list2];
             if (!(await common.nextList(page, listTableSelector))) {
                 break;
             }
