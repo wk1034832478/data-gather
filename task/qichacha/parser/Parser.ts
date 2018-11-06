@@ -15,11 +15,27 @@ export class Parser {
                 if ( kv.length < 2 ) {
                     continue;
                 }
-                obj[kv[0]] = kv[1];
+                obj[kv[0].replace('：','').replace(':','')] = kv[1];
             }
             result.push( obj );
         }
         return result;
+    }
+
+    /**
+     * 解析字符串转化为字符串数组
+     */
+    parseStringOfValueToArray( obj: string ) {
+        const list: string[]  = [];
+        const list2 = obj.split( COLUMN_DEMILITER );
+        for ( let i = 0; i < list2.length; i++) {
+            const kv = list2[i].split( EQUAL_DEMILITER );
+            if ( kv.length < 2 ) {
+                continue;
+            }
+            list.push( kv[1] );
+        }
+        return list;
     }
 }
 export const  parser: Parser = new Parser();

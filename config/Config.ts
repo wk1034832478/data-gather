@@ -14,11 +14,6 @@ export class Config {
      * @param param 命令行参数
      */
     async configBrowser ( param: any ) {
-        Logger.log(this, `浏览器配置信息
-            浏览器路径：${param.path}
-            浏览器是否无头：${typeof param.headless}
-            浏览器标签页数：${ typeof param.tabNums}
-        `);
         browserConfig.path = param.path ? param.path : defaultConfig.path;
         browserConfig.headless = param.headless ? (param.headless === 'true' ? true : false ) : defaultConfig.headless;
         browserConfig.tabNums = +( param.tabNums ? param.tabNums : defaultConfig.tabNums );

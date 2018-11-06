@@ -16,7 +16,7 @@ export class BusinessRisks {
     }
 
     // 获取信用中国行政处罚  getListOfModal
-    async getXinYongZhongGuoPledgeList( page: Page ) {
+    async getXinYongZhongGuoPenaltyList( page: Page ) {
         return await common.getListOfModal(page, '信用中国处罚行政','#fengxian_title', '#penaltylist+section', '决定文书号', '#cfModal',
         ['处罚名称','决定文书号','处罚事由','处罚状态','决定日期','处罚类别1','处罚类别2','处罚依据','处罚结果','处罚机关'], '#cfModal .modal-content table td.tb');
     }

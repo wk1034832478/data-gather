@@ -52,7 +52,7 @@ export class BusinessStatus {
 
     //获取进出口信用
     async getJinChuKouXinYong(page: Page) {
-        return await common.getListOfModal(page,'进出口信用', '#run_title','#ciaxList', '内容','#jcModal' ,[],'#jcModal .modal-content table td.tb') ;
+        return await common.getListOfModal(page,'进出口信用', '#run_title','#ciaxList', '内容','#jcModal' ,['序号','注册海关','经营类别','注册日期','内容'],'#jcModal .modal-content table td.tb') ;
     }
 
     // 获取微信公众号

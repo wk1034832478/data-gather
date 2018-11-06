@@ -6,7 +6,9 @@ export abstract class Task {
     SIGNAL_END = 2; // 结束时标志
     id: string; // 任务的id
     signal: number; // 任务执行标志 
-    constructor() {}
+    constructor() {
+        this.signal = this.SIGNAL_RUNNING;
+    }
     /**
      * 进行任务的初始化工作
      */

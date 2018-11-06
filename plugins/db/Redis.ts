@@ -5,19 +5,18 @@ export class RedisDB {
     title = 'redis 数据库连接';
     // auth
     tedisPool: TedisPool;
-    constructor() {
-        try {
-            this.connect();
-        } catch ( e ) {
-            Logger.log( redisDB, `redis数据库连接异常,${e}` );
-        }
-    }
-    connect() {
+    async init() {
+        Logger.log( redisDB, `正在连接redis数据库` );
+        // 该构造方法使用回调函数，无法使用try-catch捕获，所以一定要保证redis启动，并且账户或密码正确
         this.tedisPool = new TedisPool({
             port: 6379,
             host: "localhost",
             // password: "root" // 无密码
         });
+        //进行获取堵塞
+        const tedis = await this.getTedis();
+        this.putTedius( tedis );
+        Logger.log( redisDB, `连接redis数据库成功！` );
     }
     async set( key: string, value: string) {
         const tedis = await this.getTedis();

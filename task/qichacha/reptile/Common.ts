@@ -101,8 +101,8 @@ export class Common {
     }
     // 获取模态框里面的数据，当不提供字段列表时
     async getDataFromModal(page: Page, columnsSelector: string) {
-        const obj: string[] = await page.evaluate((columnsSelector,EQUAL_DEMILITER) => {
-            let obj = [];
+        const obj: string[] = await page.evaluate((columnsSelector,EQUAL_DEMILITER, COLUMN_DEMILITER) => {
+            let obj = '';
             const tds2 = $(columnsSelector);
             for (let i = 0; i < tds2.length; i++) {
                 const td = tds2[i];
@@ -110,27 +110,21 @@ export class Common {
                 let nextTd = $(td).next();
                 let img = nextTd.find('img');
                 if (img && img.length > 0) { // 存在img
-                    obj.push( td.innerText + EQUAL_DEMILITER +img.attr('src'));
+                    obj += td.innerText.trim() + EQUAL_DEMILITER +img.attr('src') + COLUMN_DEMILITER;
                     continue;
                 }
-                obj.push(td.innerText + EQUAL_DEMILITER + nextTd.text());
+                    obj += td.innerText.trim() + EQUAL_DEMILITER + nextTd.text() + COLUMN_DEMILITER ;
                 continue;
             }
             return obj;
-        }, columnsSelector,EQUAL_DEMILITER);
+        }, columnsSelector,EQUAL_DEMILITER, COLUMN_DEMILITER);
 
-        const obj2 = new Map<any, any>();
-        for (let i = 0; i < obj.length; i++) {
-            const kv = obj[i].split('=');
-            Logger.log(this, `${kv[0]} = ${kv[1]}`);
-            obj2.set(kv[0], kv[1]);
-        }
-        return obj2;
+        return obj;
     }
     // 获取模态框里面的数据，当提供字段列表时
     async getDataFromModalByColumns(page: Page, columns: string[], columnsSelector: string) {
-        const obj = await page.evaluate((columns, columnsSelector,EQUAL_DEMILITER) => {
-            let obj = [];
+        const obj = await page.evaluate((columns, columnsSelector,EQUAL_DEMILITER, COLUMN_DEMILITER) => {
+            let obj = '';
             const tds2 = $(columnsSelector);
             for (let i = 0; i < tds2.length; i++) {
                 const td = tds2[i];
@@ -140,16 +134,16 @@ export class Common {
                         let nextTd = $(td).next();
                         let img = nextTd.find('img');
                         if ( img && img.length > 0 ) { // 存在img
-                            obj.push(img.attr('src'));
+                            obj += $(td).text().trim() + EQUAL_DEMILITER +  img.attr('src') + COLUMN_DEMILITER;
                             break;
                         }
-                        obj.push( $(td).text() + EQUAL_DEMILITER + nextTd.text());
+                            obj += $(td).text().trim() + EQUAL_DEMILITER + nextTd.text() + COLUMN_DEMILITER;
                         break;
                     }
                 }
             }
             return obj;
-        }, columns, columnsSelector, EQUAL_DEMILITER);
+        }, columns, columnsSelector, EQUAL_DEMILITER, COLUMN_DEMILITER);
        return obj;
     }
     // 获取无头信息的企业基本信息
@@ -219,6 +213,12 @@ export class Common {
                                     obj += columns[k] + EQUAL_DEMILITER + imgs.get( imgs.length - 1 ).getAttribute( 'src')  + COLUMN_DEMILITER;
                                     break;
                                 }
+                                // 获取其中的链接，并且必须是第一个链接中的字符串
+                                let as = $( tds[j] ).find( 'a' );
+                                if ( as && as.length > 0) {
+                                    obj += columns[k] + EQUAL_DEMILITER + as.get( 0 ).innerText  + COLUMN_DEMILITER;
+                                    break;
+                                }
                                 obj += columns[k] + EQUAL_DEMILITER + tds[j].innerText + COLUMN_DEMILITER;
                                 break;
                             }
@@ -228,7 +228,6 @@ export class Common {
                 }
                 return list;
             }, listSelector, columns, COLUMN_DEMILITER,EQUAL_DEMILITER);
-            Logger.log(this, `本地获取:${list}`);
             list = [...list, ...list2];
             if (!(await common.nextList(page, listTableSelector))) {
                 break;

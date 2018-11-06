@@ -81,5 +81,13 @@ export class MysqlStorage {
             Logger.log( this, `${e}`);
         }
     } 
+
+    /**
+     * 当调用该方法时，存储或更新公司的所有信息
+     * @param info 公司的信息
+     */
+    async storeCompanyInfoOfAll ( info: any ) {
+        
+    }
 }
 export const mysqlStorage = new MysqlStorage();

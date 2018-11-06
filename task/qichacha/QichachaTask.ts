@@ -18,7 +18,14 @@ import { mysqlStorage } from './persist/MysqlStorage';
 import { ShareHolder } from './entity/ShareHolder';
 import { Invoice } from './entity/Invoice';
 import { ChangeRecord } from './entity/ChangeRecord';
+import { MainMember } from './entity/MainMember';
+import { Subcom } from './entity/Subcom';
+import { Touzi } from './entity/Touzi';
 import { parser } from '../qichacha/parser/Parser';
+import { Penalty } from './entity/Penalty';
+import { XinYongZhongGuoPenalty } from './entity/XinYongZhongGuoPenalty';
+import { Pledge } from './entity/Pledge';
+import { Caiwu } from './entity/Caiwu';
 /**
  * 企查查任务
  */
@@ -114,247 +121,310 @@ export class QichachaTask extends Task {
     }
 
     async parseInfo(page: Page) {
-        let info: Company = await page.evaluate(() => {
+        let info = await page.evaluate(() => {
             const map = {
-                '公司名': $('#company-top h1').text(),
-                '曾用名': $($('.nstatus.text-warning.tooltip-br').attr('data-original-title')).text(),
-                '电话': $('.cdes:contains("电话")+span.cvlu').text(),
-                '官网': $('.cdes:contains("官网")+span.cvlu').text(),
-                '邮箱': $('.cdes:contains("邮箱")+span.cvlu').text(),
-                '地址': $('.cdes:contains("地址")+span.cvlu').text(),
-                '在业状态': $('.nstatus.text-success-lt.m-l-xs').text(),
-                'ceo': $('.seo.font-20').text(),
-                '注册资本': $('#Cominfo .ntable .tb:contains("注册资本")+td').text(),
-                '实缴资本': $('#Cominfo .ntable .tb:contains("实缴资本")+td').text(),
-                '经营状态': $('#Cominfo .ntable .tb:contains("经营状态")+td').text(),
-                '成立日期': $('#Cominfo .ntable .tb:contains("成立日期")+td').text(),
-                '统一社会信用代码': $('#Cominfo .ntable .tb:contains("统一社会信用代码")+td').text(),
-                '纳税人识别号': $('#Cominfo .ntable .tb:contains("纳税人识别号")+td').text(),
-                '注册号': $('#Cominfo .ntable .tb:contains("注册号")+td').text(),
-                '组织机构代码': $('#Cominfo .ntable .tb:contains("组织机构代码")+td').text(),
-                '公司类型': $('#Cominfo .ntable .tb:contains("公司类型")+td').text(),
-                '所属行业': $('#Cominfo .ntable .tb:contains("所属行业")+td').text(),
-                '核准日期': $('#Cominfo .ntable .tb:contains("核准日期")+td').text(),
-                '登记机关': $('#Cominfo .ntable .tb:contains("登记机关")+td').text(),
-                '所属地区': $('#Cominfo .ntable .tb:contains("所属地区")+td').text(),
-                '英文名': $('#Cominfo .ntable .tb:contains("英文名")+td').text(),
-                '参保人数': $('#Cominfo .ntable .tb:contains("参保人数")+td').text(),
-                '人员规模': $('#Cominfo .ntable .tb:contains("人员规模")+td').text(),
-                '营业期限': $('#Cominfo .ntable .tb:contains("营业期限")+td').text(),
-                '企业地址': $('#Cominfo .ntable .tb:contains("企业地址")+td').text(),
-                '经营范围': $('#Cominfo .ntable .tb:contains("经营范围")+td').text(),
-                '投资总数': $('#touzilist .tcaption .tbadge').text(),
+                '公司名': $('#company-top h1').text().trim(),
+                '曾用名': $($('.nstatus.text-warning.tooltip-br').attr('data-original-title')).text().trim(),
+                '电话': $('.cdes:contains("电话")+span.cvlu').text().trim(),
+                '官网': $('.cdes:contains("官网")+span.cvlu').text().trim(),
+                '邮箱': $('.cdes:contains("邮箱")+span.cvlu').text().trim(),
+                '地址': $('.cdes:contains("地址")+span.cvlu').text().trim(),
+                '在业状态': $('.nstatus.text-success-lt.m-l-xs').text().trim(),
+                'ceo': $('.seo.font-20').text().trim(),
+                '注册资本': $('#Cominfo .ntable .tb:contains("注册资本")+td').text().trim(),
+                '实缴资本': $('#Cominfo .ntable .tb:contains("实缴资本")+td').text().trim(),
+                '经营状态': $('#Cominfo .ntable .tb:contains("经营状态")+td').text().trim(),
+                '成立日期': $('#Cominfo .ntable .tb:contains("成立日期")+td').text().trim(),
+                '统一社会信用代码': $('#Cominfo .ntable .tb:contains("统一社会信用代码")+td').text().trim(),
+                '纳税人识别号': $('#Cominfo .ntable .tb:contains("纳税人识别号")+td').text().trim(),
+                '注册号': $('#Cominfo .ntable .tb:contains("注册号")+td').text().trim(),
+                '组织机构代码': $('#Cominfo .ntable .tb:contains("组织机构代码")+td').text().trim(),
+                '公司类型': $('#Cominfo .ntable .tb:contains("公司类型")+td').text().trim(),
+                '所属行业': $('#Cominfo .ntable .tb:contains("所属行业")+td').text().trim(),
+                '核准日期': $('#Cominfo .ntable .tb:contains("核准日期")+td').text().trim(),
+                '登记机关': $('#Cominfo .ntable .tb:contains("登记机关")+td').text().trim(),
+                '所属地区': $('#Cominfo .ntable .tb:contains("所属地区")+td').text().trim(),
+                '英文名': $('#Cominfo .ntable .tb:contains("英文名")+td').text().trim(),
+                '参保人数': $('#Cominfo .ntable .tb:contains("参保人数")+td').text().trim(),
+                '人员规模': $('#Cominfo .ntable .tb:contains("人员规模")+td').text().trim(),
+                '营业期限': $('#Cominfo .ntable .tb:contains("营业期限")+td').text().trim(),
+                '企业地址': $('#Cominfo .ntable .tb:contains("企业地址")+td').text().trim(),
+                '经营范围': $('#Cominfo .ntable .tb:contains("经营范围")+td').text().trim(),
+                '投资总数': $('#touzilist .tcaption .tbadge').text().trim(),
             };
             return map;
         });
-        try {
-            let company: Company = await mysqlStorage.storeCompany(info);
-            info = company;
-            Logger.log(this, `公司信息存储成功-${company.公司名}`);
-        } catch (e) {
-            Logger.log(this, `公司信息存储失败-${e}`);
-            return;
-        }
         Logger.log(this, '开始调用企查查子组件爬取信息');
-        await this.getBasicInfo(page, info);
-        await this.getBusinessRisk(page, info);
-        await this.getBusinessStatus(page, info);
-        await this.getKnowledgeAsset(page, info);
-        await this.getLawsuit(page, info);
-        await this.getReportInfo(page, info);
-        Logger.log(this, '信息获取完成！准备装入数据库');
+        let company: any = [];
+        const outBasicInfo = await this.getBasicInfo(page );
+        const outBusinessRisk = await this.getBusinessRisk(page );
+        const outBusinessStatus = await this.getBusinessStatus(page );
+        const outKnowledgeAsset = await this.getKnowledgeAsset(page );
+        const outLawsuit = await this.getLawsuit(page );
+        const outReportInfo = await this.getReportInfo(page );
+        company[ '企业' ] = info;
+        company[ '基本信息' ] = outBasicInfo;
+        company[ '商业风险信息' ] = outBusinessRisk;
+        company[ '经营状况信息' ] = outBusinessStatus;
+        company[ '知识产权信息' ] = outKnowledgeAsset;
+        company[ '法律诉讼信息' ] = outLawsuit;
+        company[ '企业年报信息' ] = outReportInfo;
+        Logger.log(this, '信息获取完成！开始将信息装入到数据库当中。');
+        await mysqlStorage.storeCompanyInfoOfAll( company );
     }
-    async getBasicInfo(page: Page, comapny: Company) {
+    // 获取基本信息
+    async getBasicInfo(page: Page ) {
         Logger.log(this, `开始获取企业基本信息`);
+        let outBasicInfo: any= [];
         try {
             const shareholders: ShareHolder[] = await basicInfo.getShareHolder(page);
-            for (let i = 0; i < shareholders.length; i++) {
-                const shareholder = shareholders[i];
-                shareholder.company_id = comapny.id;
-                mysqlStorage.storeShareHolder(shareholder);
-            }
+            outBasicInfo[ '股东信息' ] = shareholders;
         } catch (e) {
-            Logger.log(this, `股东信息获取失败或信息不存在！`);
+            Logger.log(this, `股东信息获取失败或信息不存在！${ e }`);
         }
         try {
             const invoice: Invoice = await basicInfo.getTax(page);
-            invoice.company_id = comapny.id;
-            mysqlStorage.storeObject(invoice, 'invoice', { '税号': invoice.税号 });
+            outBasicInfo[ '发票信息' ] = invoice;
         } catch (e) {
-            Logger.log(this, `发票信息获取失败或信息不存在！`);
+            Logger.log(this, `发票信息获取失败或信息不存在！${ e }`);
         }
         try {
-            const changeRecord: string[] = await basicInfo.getChange(page);
-            const changeRecords: ChangeRecord[] = parser.parseStringArray(changeRecord);
-            Logger.log(this, `测试：${changeRecords[0].变更前}`);
-            for( let i = 0; i < changeRecords.length; i++) {
-                changeRecords[i].company_id = comapny.id;
-                mysqlStorage.storeObjectOrReturn( changeRecords[i], 'change_record', { 
-                'company_id': changeRecords[i].company_id, '变更项目': changeRecords[i].变更项目,'变更前': changeRecords[i].变更前,'变更后': changeRecords[i].变更后 } );
-            }
+            const changeRecordStr: string[] = await basicInfo.getChange(page);
+            const changeRecords: ChangeRecord[] = parser.parseStringArray(changeRecordStr);
+            outBasicInfo[ '变更记录' ] = changeRecords;
         } catch (e) {
-            Logger.log(this, `变更记录信息获取失败或信息不存在！${e}`);
+            Logger.log(this, `变更记录信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await basicInfo.getMainMember(page);
+            const mainMemberStr: string[] = await basicInfo.getMainMember(page);
+            const mainMembers: MainMember[] = parser.parseStringArray(mainMemberStr);
+            outBasicInfo[ '主要成员' ] = mainMembers;
         } catch (e) {
-            Logger.log(this, `主要成员信息获取失败或信息不存在！`);
+            Logger.log(this, `主要成员信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await basicInfo.getSubcom(page);
+            const subcomStr: string = await basicInfo.getSubcom(page);
+            const subcoms = parser.parseStringOfValueToArray(subcomStr);
+            outBasicInfo[ '分支机构' ] = subcoms;
         } catch (e) {
-            Logger.log(this, `分支机构信息获取失败或信息不存在！`);
+            Logger.log(this, `分支机构信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await basicInfo.getTouZiInfo(page);
+            const touziStrs = await basicInfo.getTouZiInfo(page);
+            const touzis: Touzi[] = parser.parseStringArray(touziStrs);
+            outBasicInfo[ '投资信息' ] = touzis;
         } catch (e) {
-            Logger.log(this, `投资信息获取失败或信息不存在！`);
+            Logger.log(this, `投资信息获取失败或信息不存在！${ e }`);
         }
+        return outBasicInfo;
     }
 
-    async getBusinessRisk(page: Page, comapny: Company) {
+    async getBusinessRisk(page: Page ) {
         Logger.log(this, `开始获取商业风险信息`);
+        let outBusinessRisk: any= [];
         try {
-            await businessRisks.getPenaltylist(page);
+            const penaltyStrs = await businessRisks.getPenaltylist(page);
+            const penalties: Penalty[] = parser.parseStringArray(penaltyStrs);
+            outBusinessRisk[ '工商局行政处罚' ] = penalties;
         } catch (e) {
-            Logger.log(this, `股权出质信息获取失败或信息不存在！`);
+            Logger.log(this, `工商行政处罚信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessRisks.getPledgeList(page);
+            const pledgeStrs = await businessRisks.getPledgeList(page);
+            const pledges: Pledge[] = parser.parseStringArray(pledgeStrs);
+            outBusinessRisk[ '股权出质' ] = pledges;
         } catch (e) {
-            Logger.log(this, `工商行政处罚信息获取失败或信息不存在！`);
+            Logger.log(this, `股权出质信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessRisks.getXinYongZhongGuoPledgeList(page);
+            const penalties = await businessRisks.getXinYongZhongGuoPenaltyList(page);
+            const xyzhpenalties: XinYongZhongGuoPenalty[] = parser.parseStringArray(penalties);
+            outBusinessRisk[ '信用中国处罚行政' ] = xyzhpenalties;
         } catch (e) {
-            Logger.log(this, `信用中国处罚信息获取失败或信息不存在！`);
+            Logger.log(this, `信用中国处罚信息获取失败或信息不存在！${ e }`);
         }
+        return outBusinessRisk;
     }
 
-    async getBusinessStatus(page: Page, comapny: Company) {
+    async getBusinessStatus(page: Page ) {
+        Logger.log( this, `开始获取经营状况` );
+        let outBusinessStatus: any = [];
         try {
-            await businessStatus.getCaiWuZongLan(page);
+            const caiwuStr = await businessStatus.getCaiWuZongLan(page);
+            const caiwu: Caiwu = parser.parseStringArray([caiwuStr])[0];
+            outBusinessStatus[ '财务总览' ] = caiwu;
         } catch (e) {
-            Logger.log(this, `财务总览信息获取失败或信息不存在！`);
+            Logger.log(this, `财务总览信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getJinChuKouXinYong(page);
+            const jinchukouStr = await businessStatus.getJinChuKouXinYong(page);
+            const jinchukou = parser.parseStringArray( jinchukouStr );
+            outBusinessStatus[ '进出口信用' ] = jinchukou;
         } catch (e) {
-            Logger.log(this, `进出口信用信息获取失败或信息不存在！`);
+            Logger.log(this, `进出口信用信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getLandpublist(page);
+            const langPublistStr = await businessStatus.getLandpublist(page);
+            const langPublist = parser.parseStringArray( langPublistStr );
+            outBusinessStatus[ '地块公示' ] = langPublist;
         } catch (e) {
-            Logger.log(this, `地块信息获取失败或信息不存在！`);
+            Logger.log(this, `地块信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getLandpurchaselist(page);
+            const langPurchaseListStr =  await businessStatus.getLandpurchaselist(page);
+            const langPurchaseList = parser.parseStringArray( langPurchaseListStr );
+            outBusinessStatus[ '购地信息' ] = langPurchaseList;
         } catch (e) {
-            Logger.log(this, `购地信息获取失败或信息不存在！`);
+            Logger.log(this, `购地信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getProductList(page);
+            const chanpinStr = await businessStatus.getProductList(page);
+            const chanpin = parser.parseStringArray( chanpinStr );
+            outBusinessStatus[ '产品列表' ] = chanpin;
         } catch (e) {
-            Logger.log(this, `产品列表信息获取失败或信息不存在！`);
+            Logger.log(this, `产品列表信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getRongZiXinXi(page);
+            const rongziStr = await businessStatus.getRongZiXinXi(page);
+            const rongzi = parser.parseStringArray( rongziStr );
+            outBusinessStatus[ '融资信息' ] = rongzi;
         } catch (e) {
-            Logger.log(this, `融资信息获取失败或信息不存在！`);
+            Logger.log(this, `融资信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getSpotCheckList(page);
+            const spotCheckListStr = await businessStatus.getSpotCheckList(page);
+            const spotCheckList = parser.parseStringArray( spotCheckListStr );
+            outBusinessStatus[ '抽查检查' ] = spotCheckList;
         } catch (e) {
-            Logger.log(this, `抽查检查信息获取失败或信息不存在！`);
+            Logger.log(this, `抽查检查信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getSuiWuXinYong(page);
+            const suiwuXinYongStr = await businessStatus.getSuiWuXinYong(page);
+            const suiwuXinYong = parser.parseStringArray( suiwuXinYongStr );
+            outBusinessStatus[ '税务信用' ] = suiwuXinYong;
         } catch (e) {
-            Logger.log(this, `税务信息获取失败或信息不存在！`);
+            Logger.log(this, `税务信用获取失败或信息不存在！${e}`);
         }
         try {
-            await businessStatus.getTelecomlist(page);
+            const telecomListStr = await businessStatus.getTelecomlist(page);
+            const telecomList = parser.parseStringArray( telecomListStr );
+            outBusinessStatus[ '电信许可' ] = telecomList;
         } catch (e) {
-            Logger.log(this, `电信信息获取失败或信息不存在！`);
+            Logger.log(this, `电信信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getWeChatPublic(page);
+            const wechatPublicStr = await businessStatus.getWeChatPublic(page);
+            const wechatPublic = parser.parseStringArray( wechatPublicStr );
+            outBusinessStatus[ '微信公众号' ] = wechatPublic;
         } catch (e) {
-            Logger.log(this, `微信公众号信息获取失败或信息不存在！`);
+            Logger.log(this, `微信公众号信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getXingZhengXuKeOfGongShang(page);
+            const xingzhengxukeOfGongShangStr = await businessStatus.getXingZhengXuKeOfGongShang(page);
+            const xingzhengxukeOfGongShang = parser.parseStringArray( xingzhengxukeOfGongShangStr );
+            outBusinessStatus[ '工商局行政许可' ] = xingzhengxukeOfGongShang;
         } catch (e) {
-            Logger.log(this, `工商局行政许可信息获取失败或信息不存在！`);
+            Logger.log(this, `工商局行政许可信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await businessStatus.getXingZhengXuKeOfXinYongZhongGuo(page);
+            const XinYongZhongGuoStr = await businessStatus.getXingZhengXuKeOfXinYongZhongGuo(page);
+            const XinYongZhongGuo = parser.parseStringArray( XinYongZhongGuoStr );
+            outBusinessStatus[ '信用中国行政许可' ] = XinYongZhongGuo;
         } catch (e) {
-            Logger.log(this, `信用中国行政许可信息获取失败或信息不存在！`);
+            Logger.log(this, `信用中国行政许可信息获取失败或信息不存在！${ e }`);
         }
+        return outBusinessStatus;
     }
 
-    async getKnowledgeAsset(page: Page, comapny: Company) {
+    async getKnowledgeAsset(page: Page ) {
+        Logger.log(this, '开始获取知识产权信息');
+        let outKnowledgeAsset: any = [];
         try {
-            await knowledgeAssets.getRjzzqlist(page);
+            const rjzzqListStr = await knowledgeAssets.getRjzzqlist(page);
+            const rjzzqList = parser.parseStringArray( rjzzqListStr );
+            outKnowledgeAsset[ '软件著作权信息' ] = rjzzqList;
         } catch (e) {
-            Logger.log(this, `软件著作权信息获取失败或信息不存在！`);
+            Logger.log(this, `软件著作权信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await knowledgeAssets.getShangBiao(page);
+            const shangbiaoStr = await knowledgeAssets.getShangBiao(page);
+            const shangbiao = parser.parseStringArray( shangbiaoStr );
+            outKnowledgeAsset[ '商标信息' ] = shangbiao;
         } catch (e) {
-            Logger.log(this, `商标信息获取失败或信息不存在！`);
+            Logger.log(this, `商标信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await knowledgeAssets.getWebsiteList(page);
+            const websiteListStr = await knowledgeAssets.getWebsiteList(page);
+            const shangbiao = parser.parseStringArray( websiteListStr );
+            outKnowledgeAsset[ '网站信息' ] = shangbiao;
         } catch (e) {
-            Logger.log(this, `网站信息获取失败或信息不存在！`);
+            Logger.log(this, `网站信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await knowledgeAssets.getZhengshuList(page);
+            const zhengshuListStr = await knowledgeAssets.getZhengshuList(page);
+            const zhengshuList = parser.parseStringArray( zhengshuListStr );
+            outKnowledgeAsset[ '证书信息' ] = zhengshuList;
         } catch (e) {
-            Logger.log(this, `证书信息获取失败或信息不存在！`);
+            Logger.log(this, `证书信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await knowledgeAssets.getZhuanli(page);
+            const zhuanliStr = await knowledgeAssets.getZhuanli(page);
+            const zhuanli = parser.parseStringArray( zhuanliStr );
+            outKnowledgeAsset[ '专利信息' ] = zhuanli;
         } catch (e) {
-            Logger.log(this, `专利信息获取失败或信息不存在！`);
+            Logger.log(this, `专利信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await knowledgeAssets.getZZQList(page);
+            const zzqStr = await knowledgeAssets.getZZQList(page);
+            const zzq = parser.parseStringArray( zzqStr );
+            outKnowledgeAsset[ '作品著作权' ] = zzq;
         } catch (e) {
-            Logger.log(this, `作品著作权信息获取失败或信息不存在！`);
+            Logger.log(this, `作品著作权信息获取失败或信息不存在！${ e }`);
         }
+        return outKnowledgeAsset;
     }
 
-    async getLawsuit(page: Page, comapny: Company) {
+    async getLawsuit(page: Page ) {
+        Logger.log(this, '开始获取法律诉讼信息');
+        let outLawsuitInfo: any = [];
         try {
-            await lawsuit.getFaYuanGongGao(page);
+            const fayuanGongGaoStr = await lawsuit.getFaYuanGongGao(page);
+            const fayuanGongGao = parser.parseStringArray( fayuanGongGaoStr );
+            outLawsuitInfo[ '法院公告' ] = fayuanGongGao;
         } catch (e) {
-            Logger.log(this, `法院公告信息获取失败或信息不存在！`);
+            Logger.log(this, `法院公告信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await lawsuit.getLawsuit(page);
+            const beizhixingrenXinXiStr = await lawsuit.getLawsuit(page);
+            const beizhixingrenXinXi = parser.parseStringArray( beizhixingrenXinXiStr );
+            outLawsuitInfo[ '被执行人信息' ] = beizhixingrenXinXi;
         } catch (e) {
-            Logger.log(this, `被执行人信息获取失败或信息不存在！`);
+            Logger.log(this, `被执行人信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await lawsuit.getNoticelist(page);
+            const noticeListStr = await lawsuit.getNoticelist(page);
+            const noticeList = parser.parseStringArray( noticeListStr );
+            outLawsuitInfo[ '开庭公告信息' ] = noticeList;
         } catch (e) {
-            Logger.log(this, `开庭公告信息获取失败或信息不存在！`);
+            Logger.log(this, `开庭公告信息获取失败或信息不存在！${ e }`);
         }
         try {
-            await lawsuit.getWenshuList(page);
+            const caipanwenshuStr = await lawsuit.getWenshuList(page);
+            const caipanwenshu = parser.parseStringArray( caipanwenshuStr );
+            outLawsuitInfo[ '裁判文书信息' ] = caipanwenshu;
         } catch (e) {
-            Logger.log(this, `裁判文书信息获取失败或信息不存在！`);
+            Logger.log(this, `裁判文书信息获取失败或信息不存在！${ e }`);
         }
+        return outLawsuitInfo;
     }
 
-    async getReportInfo(page: Page, comapny: Company) {
+    async getReportInfo(page: Page) {
         try {
             const report = await reportInfo.getInfo(page);
+            return report;
         } catch (e) {
-            Logger.log(this, `企业年报信息获取失败或信息不存在！`);
+            Logger.log(this, `企业年报信息获取失败或信息不存在！${ e }`);
+            return null;
         }
     }
 }
